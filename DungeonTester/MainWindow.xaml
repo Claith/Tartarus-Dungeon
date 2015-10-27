@@ -27,7 +27,7 @@
             <TextBox Name="SelectedFloorTextBox" HorizontalAlignment="Center" VerticalAlignment="Center" MaxLength="4" Text="1" CaretBrush="AntiqueWhite" VerticalScrollBarVisibility="Visible" MaxLines="1" IsUndoEnabled="True" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Width="70" />
             <Separator />
         </ToolBar>
-        <DataGrid Name="MainDataGrid" DataContext="{Binding}" />
+        <DataGrid Name="MainDataGrid" Initialized="MainDataGrid_Initialized" CanUserSortColumns="False" CanUserResizeColumns="False" CanUserReorderColumns="False" CanUserResizeRows="False" />
         
     </DockPanel>
 </Window>

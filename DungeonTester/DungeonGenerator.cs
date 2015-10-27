@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-//using System.Collections
+using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DungeonTester
 {
@@ -13,6 +15,11 @@ namespace DungeonTester
     /// </summary>
     class DungeonGenerator
     {
+        // Constants
+        private const int PROCESS_COUNT = 4; // I really should lock down size and other factors into powers of 2 to make things easily
+
+        // Too much power, might not have enough responsibility otherwise.
+
         Boolean initialized = false;
 
         UInt32 width = 1024;
@@ -102,7 +109,24 @@ namespace DungeonTester
             protected set { maxHeight = ( value > height ) ? height : value; }
         }
 
+        /// <summary>
+        /// Cache for the next FloorMap to be generated from
+        /// </summary>
+        short[,] noiseMap;
+        protected short[,] NoiseMap
+        {
+            get { return this.noiseMap; }
+            set { this.noiseMap = value; }
+        }
+
+        // Might want to look into having a previous floor and next floor NoiseMap structure
+
         List<FloorMap> floors;
+        public List<FloorMap> Floors
+        {
+            get { return this.floors; }
+            protected set { this.floors = value; } //may want to think about overloading this to simply add the value instead of copying
+        }
 
         public Boolean setupDungeon(UInt32 DungeonHeight = 1024, UInt32 DungeonWidth = 1024, int RoomComplexity = 4, 
             UInt32 RoomMinWidth = 4, UInt32 RoomMinHeight = 4, int seed = 0)
@@ -129,6 +153,9 @@ namespace DungeonTester
             return true;
         }
 
+        /// <summary>
+        /// Generates a new Dungeon Floor, adding it to the end of the list.
+        /// </summary>
         public void Generate()
         {
             //empty floor map
@@ -150,13 +177,25 @@ namespace DungeonTester
             floors.Add(tempFloor);
         }
 
-        protected FloorMap ExpandFloor(FloorMap sourceFloor)
+        /// <summary>
+        /// Read a Noise Map and interpret into a FloorMap
+        /// </summary>
+        /// <param name="sourceFloor"></param>
+        /// <returns></returns>
+        protected FloorMap ExpandFloor(short[,] sourceNoiseMap, int sourceComplexity = FloorMap.DEFAULT_COMPLEXITY, int sourceSeed = FloorMap.DEFAULT_SEED)
         {
             //Tempted to make a constructor to do this for me automatically. Might not be a bad idea.
             //Think about making use of global scaling instead of per axis
-            FloorMap tempFloor = new FloorMap(sourceFloor.Width * this.MinWidth, sourceFloor.Height * this.MinHeight, sourceFloor.Complexity, sourceFloor.Seed);
+            FloorMap tempFloor = new FloorMap((UInt32)sourceNoiseMap.GetLength(0) * this.MinWidth, (UInt32)sourceNoiseMap.GetLength(1) * this.MinHeight, sourceComplexity, sourceSeed);
 
             //how do I want to do this? It would likely be best to simply loop through tempFloor, and read the value from (ushort)floor(ix / scale) and (ushort)floor(iy / scale)
+
+            // The current idea of how to generate a floor, is to generate a noiseMap, and then extrapolate that into a FloorMap.
+            // On loading a map, the map gets populated, which entails placing default objects, and then applying the delta (if exists)
+            // I will likely require a method to determine if a FloorTile is "active" so that mobs and events are rendered.
+
+            // If I didn't need to track the position with an index, I'd love to do a simple foreach. Is it possible?
+            // If I can't, is it possible to break the problem into 4 threads to run independently? Will need a lock.
 
             for (UInt32 ix = 0; ix < tempFloor.Width; ix++)
             {
@@ -165,7 +204,7 @@ namespace DungeonTester
                     //Read the value -- Don't like this multiple casting. Look into a redesign.
                     //Might be better to read the sourceFloor once, then apply the value using another set of for loops.
                     //If the scaling factor was set, could hard code it in. Think about doing that for small standard scaling (4 or 8).
-                    tempFloor.SetPoint(ix, iy, sourceFloor.Grid[(UInt32)Math.Floor((double)ix / this.MinWidth), (UInt32)Math.Floor((double)iy / this.MinHeight)]);
+                    tempFloor.SetPoint(ix, iy, sourceFloor.Floor[(UInt32)Math.Floor((double)ix / this.MinWidth), (UInt32)Math.Floor((double)iy / this.MinHeight)]);
 
                     //This will work for a rough start
                 }

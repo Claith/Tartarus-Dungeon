@@ -22,9 +22,23 @@ namespace DungeonTester
         //The most important part
         DungeonGenerator dungeon = new DungeonGenerator();
 
+        //ushort[,] displayContext;
+        
+
         public MainWindow()
         {
             InitializeComponent();
+
+            //generate filler data context
+            try
+            {
+                displayContext = new ushort[ushort.Parse(this.FloorWidthTextBox.Text),
+                    ushort.Parse(this.FloorHeightTextBox.Text)];
+            }
+            catch
+            {
+                Console.WriteLine("MainWindow.xaml.cs::MainWindow() -- displayContext failure");
+            }
         }
 
         private void FileExit_Click(object sender, RoutedEventArgs e)
@@ -87,15 +101,13 @@ namespace DungeonTester
             this.dungeon.Generate();
         }
 
-        private void MainImage_Initialized(object sender, EventArgs e)
+        private void MainDataGrid_Initialized(object sender, EventArgs e)
         {
-            //Draw Empty Grid
-            //DrawGridImage(sender);
-        }
+            //Load blank grid using default values in text fields
+            MainDataGrid.Items.Add(displayContext);
+            //MainDataGrid.DataContext = displayContext;
 
-        private void button1_Click(object sender, RoutedEventArgs e)
-        {
-            //DrawGridImage(sender);
+            //MainDataGrid
         }
     }
 }

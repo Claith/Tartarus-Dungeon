@@ -10,6 +10,57 @@ namespace DungeonTester
         //This about defining a value type, such as UInt16 for the FloorMap, so changing data sizes is easier down the road
         //Can't see any reason to go beyond UInt16 for range of indexes, reduces memory footprint in half if done
 
+        //Need to implement two different data structures.
+        //1. A hard data structure to handle the information in a 32bit or 64bit sized system, instead of shorts
+        //Will likely require unsafe data manipulation. Could be fun. Save as binary.
+        //2. A form for exporting / importing the data to / from a sql database.
+        //The database will need extra information, which isn't used here. I'd rather make it "complete" by default than 
+        //make an adapter down the road.
+
+        //Move a copy of this into documentation
+        //Each tile will take 8 bits for type
+        //  - 1bit to enable / disable tile (shown as black "unexplored" tile)
+        //  - 2bits to show "room edges" / "cliffs" (4 options)
+        //      - 00 = Normal Floor
+        //      - 01 = No Floor (hole in ground)
+        //      - 10 = Fake Wall (Illusionary Wall?)
+        //      - 11 = Wall
+        //  - 5bits to show pallete selection (32 options - 23 mapped + 9 extras)
+        //      - 00000 = Stone
+        //      - 00001 = Fire
+        //      - 00010 = Steam
+        //      ...
+        //      - 10111 = Skylane (last mapped)
+        //      ...
+        //      - 11111 = Extra 9
+        //Each tile will take 16 (8x2) bits for the tile content
+        //  - 4bits for object parity (Type)
+        //      - 0001 = Ground Decoration
+        //      - 0010 = Constant Effect (i.e. On Fire)
+        //      - 0100 = Monster Spawner
+        //      - 1000 = Item Object (Vase, Chest, Stack of dropped items, Corpse, etc)
+        //  - 4bits for wire placement - 1bit per wire type (Terraria Style)
+        //      - 0001 = Red Wire
+        //      - 0010 = Blue Wire
+        //      - 0100 = Green Wire
+        //      - 1000 = Yellow Wire
+
+        //Objects need to possess their own properties and aren't fixed.
+        //A corpse would have items, but the items wouldn't be part of the corpse.
+        //256 object ids wouldn't be enough. If I include the left over 6 bits here, I can support 16384 object ids. Enough
+        //Do I need those extra bits for anything else? Tenatively "no".
+        //  - 6bits + 8bits for object ids
+        //Since this is already at 24 bits, wouldn't it be easier to just define a tile as 32 bits, 
+        //save on processing the bits into multiple tiles and maybe find a use for those bits later on? lighting levels?
+
+        //Question. Is it possible to use the coordinates as the object id? Should be as long as they are quick to search.
+        //Only need 10 bits?
+        //Inventories determined on use / death.
+        //Mobs are saved as a "monster spawner" to new location.
+        //Need to care for overlapping objects, such as a monster + decorative rocks + fire on ground. 2 bits for parity
+        //Need layer for wires. last 4 bits.
+        //each tile takes 16bits total then.
+
         public const UInt32 MIN_FLOOR_WIDTH      = 4;
         public const UInt32 MIN_FLOOR_HEIGHT     = 4;
         public const UInt32 DEFAULT_FLOOR_WIDTH  = 1024;
@@ -17,6 +68,7 @@ namespace DungeonTester
         public const UInt32 MAX_FLOOR_WIDTH      = 4096;
         public const UInt32 MAX_FLOOR_HEIGHT     = 4096;
         public const int DEFAULT_COMPLEXITY      = 4;
+        public const int DEFAULT_SEED            = 0;
 
         public enum NoiseTypes { Perlin, Simplex, Gradient, Random };
 
@@ -27,11 +79,11 @@ namespace DungeonTester
             protected set { this.initialized = value; }
         }
 
-        ushort[,] grid;
-        public ushort[,] Grid
+        FloorTile[,] floor;
+        public FloorTile[,] Floor
         {
-            get { return this.grid; }
-            protected set { this.grid = value; }
+            get { return this.floor; }
+            protected set { this.floor = value; }
         }
 
         UInt32 width;
@@ -81,7 +133,7 @@ namespace DungeonTester
             this.Width = floorWidth;
             this.Height = floorHeight;
             
-            this.Grid = new ushort[this.Width, this.Height];
+            this.Floor = new FloorTile[this.Width, this.Height];
 
             this.Complexity = complexity;
             this.Seed = seed;
@@ -94,15 +146,17 @@ namespace DungeonTester
         /// <param name="copyFrom">Object to Copy From</param>
         public FloorMap(FloorMap copyFrom)
         {
-            this.Grid = copyFrom.Grid;
+            this.Floor = copyFrom.Floor;
+
+            //Add more fields obviously
         }
 
-        public Boolean Clear(ushort newValue = default(ushort))
+        public Boolean Clear(Int32 newValue = default(Int32))
         {
-            //No need to check for threading issues
-            if (newValue == default(ushort))
+            //No need to check for threading issues -- might be able to move to a foreach, then clear()
+            if (newValue == default(Int32))
             {
-                this.Grid.Initialize();
+                this.Floor.Initialize();
                 return true;
             }
 
@@ -116,7 +170,7 @@ namespace DungeonTester
                 {
                     for (UInt32 iy = 0; iy < this.Height; iy++)
                     {
-                        this.Grid[ix, iy] = newValue;
+                        this.Floor[ix, iy] = newValue;
                     }                                    
                 }
 
@@ -124,6 +178,20 @@ namespace DungeonTester
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Converts Floor Data into a serialized form for storage.
+        /// </summary>
+        /// <param name="readFrom">FloorMap to serialize</param>
+        /// <returns>Serialized Grid representing the floor</returns>
+        public static Int16[,] SerializeDungeon(FloorMap readFrom)
+        {
+            Int16[,] tempGrid = new Int16[readFrom.Width, readFrom.Height];
+
+            foreach(
+
+            return tempGrid;
         }
 
         /// <summary>
@@ -193,7 +261,7 @@ namespace DungeonTester
             {
                 for (UInt32 iy = 0; iy < this.Height; iy++)
                 {
-                    this.Grid[ix, iy] = (ushort)rand.Next(comp);
+                    this.Floor[ix, iy] = (Int16)rand.Next(comp);
                 }
             }
 
@@ -209,22 +277,22 @@ namespace DungeonTester
         /// <param name="floorY">Second Dimension</param>
         /// <param name="newValue">Value to apply</param>
         /// <returns></returns>
-        public Boolean SetPoint(UInt32 floorX, UInt32 floorY, ushort newValue)
+        public Boolean SetPoint(UInt32 floorX, UInt32 floorY, Int16 newValue)
         {
             //Check Bounds -- Doesn't work when dealing with the scaled floor grid -- check later if || or && is faster
             if (floorX < 0 || floorX > this.Width)
             {
-                Console.Out.WriteLine("FloorMap::SetPoint(UInt32 floorX, UInt32 floorY, ushort newValue) -- Invalid floorX -- Out of Bounds");
+                Console.Out.WriteLine("FloorMap::SetPoint(UInt32 floorX, UInt32 floorY, Int32 newValue) -- Invalid floorX -- Out of Bounds");
                 return false;
             }
 
             if (floorY < 0 || floorY > this.Height)
             {
-                Console.Out.WriteLine("FloorMap::SetPoint(UInt32 floorX, UInt32 floorY, ushort newValue) -- Invalid floorY -- Out of Bounds");
+                Console.Out.WriteLine("FloorMap::SetPoint(UInt32 floorX, UInt32 floorY, Int32 newValue) -- Invalid floorY -- Out of Bounds");
                 return false;
             }
 
-            this.Grid[floorX, floorY] = newValue;
+            this.Floor[floorX, floorY] = newValue;
 
             return true;
         }
