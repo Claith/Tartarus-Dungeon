@@ -1,0 +1,33 @@
+﻿<Window x:Class="DungeonTester.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Dungeon Tester" Height="600" Width="800" SizeToContent="WidthAndHeight">
+    <DockPanel Name="mainDock">
+        <Menu Name="menu1" DockPanel.Dock="Top" HorizontalAlignment="Left">
+            <MenuItem Header="_File">
+                <Separator />
+                <MenuItem Header="_Exit" Click="FileExit_Click" />
+            </MenuItem>
+            <MenuItem Header="_Tools">
+                <MenuItem Header="_View">
+                    <MenuItem Header="_RawGrid" />
+                </MenuItem>
+            </MenuItem>
+        </Menu>
+        <ToolBar Name="MainToolBar" DockPanel.Dock="Top" >
+            <Button Name="Run" Content="Generate Floors" Click="_Run_Click" Margin="1" />
+            <Separator MinWidth="3" IsTabStop="False" IsHitTestVisible="False" />
+            <TextBlock Text="Floor Width:" HorizontalAlignment="Left" VerticalAlignment="Center" Background="Wheat" />
+            <TextBox Name="FloorWidthTextBox" AutoWordSelection="True" MaxLength="4" Text="1024" UndoLimit="10" Background="Wheat" />
+            <TextBlock Text="Floor Height:" HorizontalAlignment="Left" VerticalAlignment="Center" Background="Azure" />
+            <TextBox Name="FloorHeightTextBox" AutoWordSelection="True" MaxLength="4" Text="1024" UndoLimit="10" Background="Azure" />
+            <CheckBox Name="DimensionLock" IsChecked="True" />
+            <Separator />
+            <Button Content="Load Floor" Name="LoadFloorButton" Width="76" Click="LoadFloorButton_Click" />
+            <TextBox Name="SelectedFloorTextBox" HorizontalAlignment="Center" VerticalAlignment="Center" MaxLength="4" Text="1" CaretBrush="AntiqueWhite" VerticalScrollBarVisibility="Visible" MaxLines="1" IsUndoEnabled="True" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" Width="70" />
+            <Separator />
+        </ToolBar>
+        <DataGrid Name="MainDataGrid" Initialized="MainDataGrid_Initialized" CanUserSortColumns="False" CanUserResizeColumns="False" CanUserReorderColumns="False" CanUserResizeRows="False" />
+        
+    </DockPanel>
+</Window>
